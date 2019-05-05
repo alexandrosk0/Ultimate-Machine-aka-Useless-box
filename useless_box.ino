@@ -7,6 +7,8 @@
   Tested with Open CM 9.04 and with Arduino Nano V3
 */
 
+#include "data.h"
+
 #ifdef BOARD_CM904
   #define OPEN_CM
 #endif
@@ -54,17 +56,12 @@
   #define MAP_SPEED(X) map(X, 0, 100, 0, 255)
 #endif //DYNAMIXEL_SERVOS
 
-#define HAND_EXTEND_POS 20 // Find the right extended position for your setup of hand servo (0-100)
-#define HAND_CURTAIL_POS 100 // Find the right curtailed position for your setup of hand servo
-
-#define COVER_OPEN_POS 50 // Find the right extended position for your setup of cover servo
-#define COVER_CLOSE_POS 5 // Find the right curtailed position for your setup of cover servo
-
-#define HAND_MIN_EXTEND_DELAY 50
-#define COVER_MIN_CLOSE_DELAY 100
+///////////////////////////////////////////////////////
+// Static variables
+///////////////////////////////////////////////////////
+static int previous_value = 1;
 
 
-#include "data.h"
 
 //#define VERBOSE_LOG // Comment to have minimal serial output 
 
@@ -111,6 +108,12 @@ void SetupServos()
 
 ///////////////////////////////////////////////////////
 // Functions
+///////////////////////////////////////////////////////
+int GetSwitchValue()
+{
+  return digitalRead(SWITCH_PIN);  
+}
+
 ///////////////////////////////////////////////////////
 void ApplyAction(Action& action)
 {
@@ -160,9 +163,29 @@ void ApplyAction(Action& action)
       LOGLN_INFO(" ms");
       break;
   }
-  delay(action.pause);
+
+  if (action.pause > 0)
+  {
+    float delayChunk = action.pause / 100;    
+    for (int i = 0; i < 100; i++)
+    {
+      if (previous_value == GetSwitchValue())
+      {
+        LOGLN("Abort delay");
+        break;
+      }
+      else
+      {
+        LOG_INFO("Delay chunk ");
+        LOGLN_INFO(delayChunk);
+        delay(delayChunk);
+      }
+    }
+  }
+  
 }
 
+///////////////////////////////////////////////////////
 void SwitchValueChanged(int value)
 {
   static int sequenceIndex = 0;
@@ -173,8 +196,14 @@ void SwitchValueChanged(int value)
   
   Sequence const &seq = sequencesRepository[sequenceIndex];
   
-  for (int i = 0; i < SEQUENCE_LENGTH; i++)
+  for (int i = 0; i < SEQUENCE_LENGTH_MAX; i++)
   {
+    if (value != GetSwitchValue())
+    {
+      LOG("Switch was moved during sequence, abort sequence to run the next one");
+      break;
+    }
+    
     byte actionIndex = seq.sequences[value][i]; // Low is 0, High is 1    
     
     if (actionIndex > 0)
@@ -194,9 +223,8 @@ void SwitchValueChanged(int value)
 }
 
 ///////////////////////////////////////////////////////
-void checkValue(int value)
-{
-  static int previous_value = 1;
+void CheckSwitchValue(int value)
+{  
   if (value != previous_value)
   {
     LOGLN(value == HIGH ? "Switch Off Detected!" : "Switch On Detected!");  
@@ -204,7 +232,6 @@ void checkValue(int value)
     previous_value = value;    
   }
 }
-
 ///////////////////////////////////////////////////////
 // Default arduino functions
 ///////////////////////////////////////////////////////
@@ -227,6 +254,6 @@ void setup()
 ///////////////////////////////////////////////////////
 void loop()
 {
-  checkValue(digitalRead(SWITCH_PIN));
-  delay(100);
+  CheckSwitchValue(GetSwitchValue());
+  delay(50);
 }

@@ -1,7 +1,7 @@
 #ifndef _CLASSES_H_
 #define _CLASSES_H_
 
-#define SEQUENCE_LENGTH 12
+#define SEQUENCE_LENGTH_MAX 12
 
 enum ActionType : byte
 {
@@ -28,11 +28,10 @@ public:
   }  
 };
 
-class Sequence
+class Sequence //Sizeof(Sequence) SEQUENCE_LENGTH_MAX*2 = 24 bytes
 {
 public:
-  byte sequences[2][SEQUENCE_LENGTH];
-
+  byte sequences[2][SEQUENCE_LENGTH_MAX]; // // Low is 0, High is 1
 };
 
 
