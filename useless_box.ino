@@ -1,14 +1,14 @@
-/* 
+/*
   MCU based "Ultimate machine" aka "Useless Box" aka "Leave me alone box"
   https://en.wikipedia.org/wiki/Useless_machine
-  
+
   Works with Arduino or Open CM and for regular servos or smart servos
-  Define OPEN_CM for Open CM 9.04 and define DYNAMIXEL_SERVOS for Dynamixel XL-320 smart servors  
+  Define OPEN_CM for Open CM 9.04 and define DYNAMIXEL_SERVOS for Dynamixel XL-320 smart servors
   Tested with Open CM 9.04 and with Arduino Nano V3
- */
- 
+*/
+
 #ifdef BOARD_CM904
-#define OPEN_CM
+  #define OPEN_CM
 #endif
 
 //#define DYNAMIXEL_SERVOS
@@ -16,70 +16,80 @@
 #ifdef OPEN_CM
 ///////////// Pins definitions
   #define SWITCH_PIN 8 // Pin that supports internal pull-up connected to GND via switch 
-//Pins definitions //////////////
-  #define LED_PIN BOARD_LED_PIN  
+  //Pins definitions //////////////
+  #define LED_PIN BOARD_LED_PIN
+  
+  #define LOGLN(X) SerialUSB.println(X)
+  #define LOG(X) SerialUSB.print(X)
 #else //////// Arduino
 ///////////// Pins definitions
   #define SWITCH_PIN 3 //D3 // Pin that supports internal pull-up connected to GND via switch 
-//Pins definitions //////////////
+  //Pins definitions //////////////
   #define LED_PIN LED_BUILTIN
-#endif
+  
+  #define LOGLN(X) Serial.println(X)
+  #define LOG(X) Serial.print(X)
+#endif //OPEN_CM
 
-#ifdef DYNAMIXEL_SERVOS  
+#ifdef DYNAMIXEL_SERVOS
   #define DXL_BUS_SERIAL1 1  //Dynamixel on Serial1(USART1)  <-OpenCM9.04
   Dynamixel Dxl(DXL_BUS_SERIAL1);
   
   #define ID_HAND_SERVO 1 //ID of the hand controlling XL-320 servo
   #define ID_COVER_SERVO 2 //ID of the cover controlling XL-320 servo
- 
-  #define HAND_EXTEND_POS 0 // Find the right extended position for your setup of hand servo (0-1023)
-  #define HAND_CURTAIL_POS 300 // Find the right curtailed position for your setup of hand servo (0-1023)
-
-  #define COVER_OPEN_POS 0 // Find the right extended position for your setup of cover servo (0-1023)
-  #define COVER_CLOSE_POS 200 // Find the right curtailed position for your setup of cover servo (0-1023) 
+  
+  #define MAP_POS(X) map(X, 0, 100, 0, 1023)
+  #define MAP_SPEED(X) map(X, 0, 100, 0, 1023)
 #else //////// Regular Servos
 ///////////// Pins definitions
   #define HAND_SERVO_PIN 5 //D5
   #define COVER_SERVO_PIN 9 //D9
-//Pins definitions //////////////
-
-  #include <Servo.h> 
-  Servo hand_servo;
-  Servo cover_servo;
-
-  #define HAND_EXTEND_POS 20 // Find the right extended position for your setup of hand servo (0-180)
-  #define HAND_CURTAIL_POS 150 // Find the right curtailed position for your setup of hand servo (0-180)
+  //Pins definitions //////////////
   
-  #define COVER_OPEN_POS 45 // Find the right extended position for your setup of cover servo (0-180)
-  #define COVER_CLOSE_POS 0 // Find the right curtailed position for your setup of cover servo (0-180)
-#endif
+  #include <VarSpeedServo.h> 
+  VarSpeedServo hand_servo;
+  VarSpeedServo cover_servo;
+  
+  #define MAP_POS(X) map(X, 0, 100, 0, 180)
+  #define MAP_SPEED(X) map(X, 0, 100, 0, 255)
+#endif //DYNAMIXEL_SERVOS
 
-#define HAND_EXTEND_DELAY 200
-#define COVER_CLOSE_DELAY 200
+#define HAND_EXTEND_POS 20 // Find the right extended position for your setup of hand servo (0-100)
+#define HAND_CURTAIL_POS 100 // Find the right curtailed position for your setup of hand servo
 
+#define COVER_OPEN_POS 50 // Find the right extended position for your setup of cover servo
+#define COVER_CLOSE_POS 5 // Find the right curtailed position for your setup of cover servo
+
+#define HAND_MIN_EXTEND_DELAY 50
+#define COVER_MIN_CLOSE_DELAY 100
+
+
+#include "data.h"
+
+//#define VERBOSE_LOG // Comment to have minimal serial output 
+
+#ifdef VERBOSE_LOG
+  #define LOG_INFO LOG
+  #define LOGLN_INFO LOGLN
+#else
+  #define LOG_INFO
+  #define LOGLN_INFO
+#endif // VERBOSE_LOG
 
 ///////////////////////////////////////////////////////
 // Setup
 ///////////////////////////////////////////////////////
-void servos_setup()
-{  
+void SetupServos()
+{
 #ifdef DYNAMIXEL_SERVOS
   Dxl.begin(3);
 
   Dxl.jointMode(ID_HAND_SERVO);
   Dxl.jointMode(ID_COVER_SERVO);
-  
+
   Dxl.goalSpeed(ID_HAND_SERVO, 1023);
   Dxl.goalSpeed(ID_COVER_SERVO, 1023);
-#else
-  hand_servo.attach(HAND_SERVO_PIN);
-  cover_servo.attach(COVER_SERVO_PIN);
-#endif
-}
 
-void init_servos()
-{  
-#ifdef DYNAMIXEL_SERVOS
   // Cycle the colors of the servos, just because we can
   for (int color_id = 0; color_id <= 7; color_id++)
   {
@@ -90,14 +100,118 @@ void init_servos()
     Dxl.ledOff(ID_COVER_SERVO);//All Dynamixel LED off
     delay(50);
   }
+#else
+  hand_servo.attach(HAND_SERVO_PIN);
+  cover_servo.attach(COVER_SERVO_PIN);
+
+  cover_servo.write(MAP_POS(COVER_CLOSE_POS), MAP_SPEED(100), true);
+  hand_servo.write(MAP_POS(HAND_CURTAIL_POS), MAP_SPEED(100), true);
 #endif
 }
 
 ///////////////////////////////////////////////////////
-void setup() 
+// Functions
+///////////////////////////////////////////////////////
+void ApplyAction(Action& action)
 {
-  servos_setup();
- 
+  LOG_INFO("Action type ");
+  LOGLN_INFO(action.type);
+  switch (action.type)
+  {
+    case CoverMotion: //////////////////////////////////////////////
+      LOG_INFO("CoverMotion speed ");
+      LOG_INFO(action.speed);
+      LOG_INFO(" pos ");
+      LOGLN_INFO(action.pos);
+      
+#ifdef DYNAMIXEL_SERVOS
+      Dxl.goalSpeed(ID_COVER_SERVO, MAP(action.speed));
+      Dxl.goalPosition(ID_COVER_SERVO, MAP(action.pos));
+#else //////// Regular Servos
+      cover_servo.write(MAP_POS(action.pos), MAP_SPEED(action.speed), false);
+#endif
+      break;
+    case HandMotion: //////////////////////////////////////////////
+      LOG_INFO("HandMotion speed ");
+      LOG_INFO(action.speed);
+      LOG_INFO(" pos ");
+      LOGLN_INFO(action.pos);
+
+#ifdef DYNAMIXEL_SERVOS
+      Dxl.goalSpeed(ID_HAND_SERVO, MAP_SPEED(action.speed));
+      Dxl.goalPosition(ID_HAND_SERVO, MAP_POS(action.pos));
+#else //////// Regular Servos
+      hand_servo.write(MAP_POS(action.pos), MAP_SPEED(action.speed), false);      
+#endif
+      break;
+    case ColorLED: //////////////////////////////////////////////
+      LOG_INFO("ColorLED color ");
+      LOGLN_INFO(action.pos);
+#ifdef DYNAMIXEL_SERVOS
+      Dxl.ledOn(ID_HAND_SERVO, action.pos);
+      Dxl.ledOn(ID_COVER_SERVO, action.pos);
+#else //////// Regular Servos
+      digitalWrite(LED_PIN, action.pos);
+#endif
+      break;
+    case Wait: //////////////////////////////////////////////
+      LOG_INFO("Wait for  ");
+      LOG_INFO(action.pause);
+      LOGLN_INFO(" ms");
+      break;
+  }
+  delay(action.pause);
+}
+
+void SwitchValueChanged(int value)
+{
+  static int sequenceIndex = 0;
+  sequenceIndex = value == LOW ? random(0, NUM_SEQUENCES) : sequenceIndex;  // Pick a random sequence from the available onces, but only for the switch On, keep the same for the switch Off
+
+  LOG("Sequence selected with index ");
+  LOGLN(sequenceIndex);
+  
+  Sequence const &seq = sequencesRepository[sequenceIndex];
+  
+  for (int i = 0; i < SEQUENCE_LENGTH; i++)
+  {
+    byte actionIndex = seq.sequences[value][i]; // Low is 0, High is 1    
+    
+    if (actionIndex > 0)
+    {      
+      LOG_INFO("actionIndex ");
+      LOGLN_INFO(actionIndex);
+      ApplyAction(actions[actionIndex]);
+    }
+    else
+    {
+      LOG("Done with sequence ");      
+      LOG(sequenceIndex);
+      LOGLN(value == HIGH ? " for switch Off!" : " for switch On!");  
+      break;
+    }
+  }
+}
+
+///////////////////////////////////////////////////////
+void checkValue(int value)
+{
+  static int previous_value = 1;
+  if (value != previous_value)
+  {
+    LOGLN(value == HIGH ? "Switch Off Detected!" : "Switch On Detected!");  
+    SwitchValueChanged(value);
+    previous_value = value;    
+  }
+}
+
+///////////////////////////////////////////////////////
+// Default arduino functions
+///////////////////////////////////////////////////////
+void setup()
+{
+  SetupServos();
+
   // Switch connected to GND and pin SWITCH_PIN
   pinMode(SWITCH_PIN, INPUT_PULLUP);
 
@@ -107,73 +221,12 @@ void setup()
   Serial.begin(9600);
 #endif
 
-  init_servos();
+  randomSeed(analogRead(0));
 }
 
-///////////////////////////////////////////////////////
-// Functions
-///////////////////////////////////////////////////////
-
-void switch_changed(int value)
-{
-#ifdef OPEN_CM
-  SerialUSB.println(value == HIGH ? "HIGH Detected!" : "LOW Detected!");
-#else
-  Serial.println(value == HIGH ? "HIGH Detected!" : "LOW Detected!");
-#endif
-
-#ifdef DYNAMIXEL_SERVOS
-  if (value == HIGH)
-  {
-    Dxl.goalPosition(ID_HAND_SERVO, HAND_CURTAIL_POS);
-    delay(COVER_CLOSE_DELAY);
-    Dxl.goalPosition(ID_COVER_SERVO, COVER_CLOSE_POS);
-    
-    Dxl.ledOn(ID_HAND_SERVO, 4);
-    Dxl.ledOn(ID_COVER_SERVO, 6);
-  }
-  else
-  {
-    Dxl.goalPosition(ID_COVER_SERVO, COVER_OPEN_POS);
-    delay(HAND_EXTEND_DELAY);
-    Dxl.goalPosition(ID_HAND_SERVO, HAND_EXTEND_POS);
-
-    Dxl.ledOn(ID_HAND_SERVO, 2);
-    Dxl.ledOn(ID_COVER_SERVO, 1);
-  }
-#else
-  if (value == HIGH)
-  {    
-    hand_servo.write(HAND_CURTAIL_POS);
-    delay(COVER_CLOSE_DELAY);
-    cover_servo.write(COVER_CLOSE_POS);
-  }
-  else
-  {
-    cover_servo.write(COVER_OPEN_POS);
-    delay(HAND_EXTEND_DELAY);
-    hand_servo.write(HAND_EXTEND_POS);
-  }
-#endif
-}
-
-int previous_value = -1;
-///////////////////////////////////////////////////////
-void check_value(int value)
-{
-  if (value != previous_value)
-  {
-    switch_changed(value);
-    previous_value = value;
-    digitalWrite(LED_PIN, value);    
-  }
-}
-
-///////////////////////////////////////////////////////
-// Update
 ///////////////////////////////////////////////////////
 void loop()
 {
-  check_value(digitalRead(SWITCH_PIN));  
-  delay(10);
+  checkValue(digitalRead(SWITCH_PIN));
+  delay(100);
 }
