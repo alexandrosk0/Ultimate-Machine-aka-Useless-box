@@ -60,10 +60,11 @@
 // Static variables
 ///////////////////////////////////////////////////////
 static int previous_value = 1;
+static boolean overrideSequenceIndex = false;
+static int sequenceIndex = 0;
+static String readString;
 
-
-
-//#define ENABLE_LOG // Uncomment to have log serial output 
+#define ENABLE_LOG // Uncomment to have log serial output 
 //#define VERBOSE_LOG // Uncomment to have verbose log serial output, but be ware, it takes more than 1KB dynamic memory
 
 
@@ -177,8 +178,6 @@ void ApplyAction(const Action& action)
         }
         else
         {
-          LOG_INFO("Delaying for chunk ");
-          LOGLN_INFO(delayChunk);
           delay(delayChunk);
         }
       }      
@@ -188,10 +187,14 @@ void ApplyAction(const Action& action)
 
 ///////////////////////////////////////////////////////
 void SwitchValueChanged(int value)
-{
-  static int sequenceIndex = 0;
-  sequenceIndex = value == LOW ? random(0, NUM_SEQUENCES) : sequenceIndex;  // Pick a random sequence from the available onces, but only for the switch On, keep the same for the switch Off
-
+{  
+  if (!overrideSequenceIndex && sequenceIndex < NUM_SEQUENCES)
+  {  
+    // Pick a random sequence from the available onces, but only for the switch On, keep the same for the switch Off
+    sequenceIndex = (value == LOW) ? random(0, NUM_SEQUENCES) : sequenceIndex;  
+  }
+  overrideSequenceIndex = false;
+  
   LOG("Sequence selected with index ");
   LOGLN(sequenceIndex);
   
@@ -215,9 +218,9 @@ void SwitchValueChanged(int value)
     }
     else
     {
-      LOG("Done with sequence ");      
+      LOG("Finish with sequence ");      
       LOG(sequenceIndex);
-      LOGLN(value == HIGH ? " for switch Off!" : " for switch On!");  
+      LOGLN(value == HIGH ? " for closing!" : " for switching off!");  
       break;
     }
   }
@@ -257,4 +260,24 @@ void loop()
 {
   CheckSwitchValue(GetSwitchValue());
   delay(50);
+}
+
+
+void serialEvent() 
+{
+  while (Serial.available()) 
+  {
+    char c = Serial.read();
+    readString += c;
+    delay(2);    
+  }
+  
+  if (readString.length() >0) 
+  {
+    sequenceIndex = readString.toInt();
+    readString = "";
+    overrideSequenceIndex = true;
+    LOG("Received index value from serial ");
+    LOGLN(sequenceIndex);    
+  }
 }
