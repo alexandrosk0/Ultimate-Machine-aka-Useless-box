@@ -63,16 +63,24 @@ static int previous_value = 1;
 
 
 
-//#define VERBOSE_LOG // Comment to have minimal serial output 
+//#define ENABLE_LOG // Uncomment to have log serial output 
+//#define VERBOSE_LOG // Uncomment to have verbose log serial output, but be ware, it takes more than 1KB dynamic memory
+
 
 #ifdef VERBOSE_LOG
   #define LOG_INFO LOG
   #define LOGLN_INFO LOGLN
 #else
-  #define LOG_INFO
-  #define LOGLN_INFO
+  #define LOG_INFO(...);
+  #define LOGLN_INFO(...);
 #endif // VERBOSE_LOG
 
+#ifndef ENABLE_LOG
+  #undef LOG
+  #undef LOGLN
+  #define LOG(...);
+  #define LOGLN(...);
+#endif
 ///////////////////////////////////////////////////////
 // Setup
 ///////////////////////////////////////////////////////
@@ -115,10 +123,8 @@ int GetSwitchValue()
 }
 
 ///////////////////////////////////////////////////////
-void ApplyAction(Action& action)
+void ApplyAction(const Action& action)
 {
-  LOG_INFO("Action type ");
-  LOGLN_INFO(action.type);
   switch (action.type)
   {
     case CoverMotion: //////////////////////////////////////////////
@@ -159,30 +165,25 @@ void ApplyAction(Action& action)
       break;
     case Wait: //////////////////////////////////////////////
       LOG_INFO("Wait for  ");
-      LOG_INFO(action.pause);
+      LOG_INFO(action.pos*100);
       LOGLN_INFO(" ms");
+      float delayChunk = (action.pos*100) / 20;    
+      for (int i = 0; i < 20; i++)
+      {
+        if (previous_value == GetSwitchValue())
+        {
+          LOGLN("Abort delay");
+          break;
+        }
+        else
+        {
+          LOG_INFO("Delaying for chunk ");
+          LOGLN_INFO(delayChunk);
+          delay(delayChunk);
+        }
+      }      
       break;
   }
-
-  if (action.pause > 0)
-  {
-    float delayChunk = action.pause / 100;    
-    for (int i = 0; i < 100; i++)
-    {
-      if (previous_value == GetSwitchValue())
-      {
-        LOGLN("Abort delay");
-        break;
-      }
-      else
-      {
-        LOG_INFO("Delay chunk ");
-        LOGLN_INFO(delayChunk);
-        delay(delayChunk);
-      }
-    }
-  }
-  
 }
 
 ///////////////////////////////////////////////////////
@@ -208,9 +209,9 @@ void SwitchValueChanged(int value)
     
     if (actionIndex > 0)
     {      
-      LOG_INFO("actionIndex ");
-      LOGLN_INFO(actionIndex);
-      ApplyAction(actions[actionIndex]);
+      LOG_INFO("Running action ");
+      LOGLN_INFO(actions_str[actionIndex]);
+      ApplyAction(actionsRepository[actionIndex]);
     }
     else
     {
