@@ -4,7 +4,7 @@
 
 
 #define HAND_EXTEND_POS 0 // Find the right extended position for your setup of hand servo (0-100)
-#define HAND_EXTEND_NO_SWITCH_POS 20
+#define HAND_EXTEND_NO_SWITCH_POS 30
 #define HAND_EXTEND_HALF_POS 60
 #define HAND_EXTEND_LITTLE_POS 75
 #define HAND_CURTAIL_POS 100 // Find the right curtailed position for your setup of hand servo
@@ -141,8 +141,8 @@ Action actionsRepository[] =
   {HandMotion, 0, 0},                                                  // HandR04
   {HandMotion, 0, 0},                                                  // HandR05
 
-  {ColorLED, 0, 100},                                                  // LEDOn
-  {ColorLED, 1, 100},                                                  // LEDOff
+  {ColorLED, 1, 100},                                                  // LEDOn
+  {ColorLED, 0, 100},                                                  // LEDOff
 
   {Wait, 1, 0},                                                        // Wait100ms
   {Wait, 3, 0},                                                        // Wait300ms
@@ -156,31 +156,31 @@ Action actionsRepository[] =
 Sequence sequencesRepository[NUM_SEQUENCES] = 
 {
   //0 Standard F open and close
-  {{{LEDOn, CoverFullF, HandFullF}, 
+  {{{LEDOn, CoverFullF, Wait100ms, HandFullF}, 
   {LEDOff, HandCurtailF, CoverCloseM}}},
 
   //1 Wait two seconds before doing standard
-  {{{LEDOn, Wait2sec, CoverFullF, HandFullF}, 
+  {{{LEDOn, Wait2sec, CoverFullF, Wait100ms, HandFullF}, 
   {LEDOff, HandCurtailF, CoverCloseM}}},
 
   //2 Extend S till switch, but don't push, go back F, pause for two seconds and F switch off
-  {{{LEDOn, CoverFullF, HandAlmostF, Wait2sec, HandCurtailF, CoverCloseF, Wait2sec, CoverFullF, HandFullF}, 
+  {{{LEDOn, CoverFullF, Wait100ms, HandAlmostF, Wait2sec, HandCurtailF, CoverCloseF, Wait2sec, CoverFullF, Wait100ms, HandFullF}, 
   {LEDOff, HandCurtailF, CoverCloseM}}},
 
   //3 Extend till switch, but don't push, pause for four seconds and F switch off
-  {{{LEDOn, CoverFullF, HandAlmostF, Wait2sec, Wait2sec, HandFullF}, 
+  {{{LEDOn, CoverFullF, Wait100ms, HandAlmostF, Wait2sec, Wait2sec, HandFullF}, 
   {LEDOff, HandCurtailF, CoverCloseM}}},
 
   //4 Open to a third, close, 4 open to third, close and open full and swith off. At end of switch off, poke after two seconds
-  {{{LEDOn, CoverHalveF, Wait1sec, CoverCloseF, Wait2sec, CoverCloseF, CoverFullF, HandFullF}, 
+  {{{LEDOn, CoverHalveF, Wait1sec, CoverCloseF, Wait2sec, CoverCloseF, CoverFullF, Wait100ms, HandFullF}, 
   {LEDOff, HandCurtailF, CoverCloseM, Wait5sec, CoverHalveF, Wait1sec, CoverCloseF}}},
 
   //5 F open, close door while hand is extended three time and switch off
-  {{{LEDOn, CoverFullF, HandAlmostF, Wait300ms, CoverCloseF, Wait300ms, CoverFullF, Wait300ms, CoverCloseF, Wait300ms, CoverFullF, Wait500ms, CoverCloseF, Wait300ms, CoverOverF, Wait1sec, CoverCloseF, Wait300ms, CoverOverF, Wait2sec, CoverCloseF, HandFullF}, 
+  {{{LEDOn, CoverFullF, Wait100ms, HandAlmostF, Wait300ms, CoverCloseF, Wait300ms, CoverFullF, Wait100ms, Wait300ms, CoverCloseF, Wait300ms, CoverFullF, Wait100ms, Wait500ms, CoverCloseF, Wait300ms, CoverOverF, Wait1sec, CoverCloseF, Wait300ms, CoverOverF, Wait2sec, CoverCloseF, Wait100ms, HandFullF}, 
   {LEDOff, HandCurtailF, CoverCloseF}}},
   
   //6 German's amazing move
-  {{{LEDOn, HandTwitchF, Wait300ms, HandCurtailF, Wait300ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, CoverFullF, Wait500ms, HandFullF}, 
+  {{{LEDOn, HandTwitchF, Wait300ms, HandCurtailF, Wait300ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, CoverFullF, Wait100ms, Wait500ms, HandFullF}, 
   {HandCurtailF, CoverCloseS, Wait100ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, HandFullF, Wait300ms, HandCurtailF, Wait300ms, HandHalveF, Wait300ms, HandCurtailF, Wait300ms, HandTwitchF, Wait300ms, HandCurtailF, LEDOff}}},  
 };
 

@@ -1,7 +1,7 @@
 #ifndef _CLASSES_H_
 #define _CLASSES_H_
 
-#define SEQUENCE_LENGTH_MAX 24
+#define SEQUENCE_LENGTH_MAX 26
 
 enum ActionType : byte
 {
